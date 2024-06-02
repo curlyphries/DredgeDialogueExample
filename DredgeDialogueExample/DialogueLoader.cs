@@ -1,4 +1,4 @@
-﻿using HarmonyLib;
+using HarmonyLib;
 using System.Collections.Generic;
 using Yarn.Unity;
 using Yarn;
@@ -7,6 +7,9 @@ using System.IO;
 using Winch.Core;
 using CsvHelper.Configuration.Attributes;
 using CsvHelper.Configuration;
+using System;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace DredgeDialogueExample
 {
@@ -58,36 +61,93 @@ namespace DredgeDialogueExample
     {
         public static List<Line> lines = new();
         public static List<LineMetadata> metadata = new();
+        public static List<Program> programs = new();
 
-        public static void Load()
+        public static void LoadDialogues()
         {
-            using (StringReader sr = new StringReader(Properties.Resources.Lines))
+            WinchCore.Log.Debug("Loading dialogues...");
+
+            string[] modDirs = Directory.GetDirectories("Mods");
+            foreach (string modDir in modDirs)
             {
-                using (var csv = new CsvReader(sr))
+                string assetFolderPath = Path.Combine(modDir, "Assets");
+                if (!Directory.Exists(assetFolderPath))
+                    continue;
+                string dialogueFolderPath = Path.Combine(assetFolderPath, "Dialogues");
+
+                if (Directory.Exists(dialogueFolderPath)) LoadDialoguesFiles(dialogueFolderPath);
+            }
+        }
+
+        private static void LoadDialoguesFiles(string dialogueFolderPath)
+        {
+            WinchCore.Log.Debug("Dialogues found");
+
+            foreach(string file in Directory.GetFiles(dialogueFolderPath))
+            {
+                if (!file.EndsWith(".yarn")) continue;
+
+                ProcessStartInfo startInfo = new ProcessStartInfo();
+                startInfo.CreateNoWindow = true;
+                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
+                startInfo.FileName = ".\\ysc.exe";
+                startInfo.Arguments = "compile "+ Path.GetFullPath(file);
+                startInfo.WorkingDirectory = dialogueFolderPath;
+
+                try
                 {
-                    WinchCore.Log.Debug("Loading records!");
-                    csv.Configuration.Delimiter = ",";
-                    var records = csv.GetRecords<Line>();
-                    foreach (var record in records)
+                    using (Process exeProcess = Process.Start(startInfo))
                     {
-                        lines.Add(record);
+                        exeProcess.WaitForExit();
                     }
+                    Load(file);
+                }
+                catch(Exception e)
+                {
+                    WinchCore.Log.Error(e);
                 }
             }
+        }
 
-            using (StringReader sr = new StringReader(Properties.Resources.Metadata))
+        private static void Load(string file)
+        {
+            //StreamReader sr2 = new StreamReader("Mods\\DredgeDialogueExample\\Dialogue\\DialogueExample-Lines.csv");
+            using (var csv = new CsvReader(new StreamReader(file.Replace(".yarn", "-Lines.csv"))))
             {
-                using (var csv = new CsvReader(sr))
+                WinchCore.Log.Debug("Loading records for " + Path.GetFileNameWithoutExtension(file) + "!");
+                int n = 0;
+                csv.Configuration.Delimiter = ",";
+                var records = csv.GetRecords<Line>();
+                foreach (var record in records)
                 {
-                    WinchCore.Log.Debug("Loading metadata!");
-                    csv.Configuration.Delimiter = ",";
-                    csv.Configuration.RegisterClassMap<LineMetadataMap>();
-                    var records = csv.GetRecords<LineMetadata>();
-                    foreach (var record in records)
-                    {
-                        metadata.Add(record);
-                    }
+                    lines.Add(record);
                 }
+                WinchCore.Log.Debug("Loaded " + n + " records");
+            }
+
+            using (var csv = new CsvReader(new StreamReader(file.Replace(".yarn", "-Metadata.csv"))))
+            {
+                WinchCore.Log.Debug("Loading metadata for " + Path.GetFileNameWithoutExtension(file) + "!");
+                int n = 0;
+                csv.Configuration.Delimiter = ",";
+                csv.Configuration.RegisterClassMap<LineMetadataMap>();
+                var records = csv.GetRecords<LineMetadata>();
+                foreach (var record in records)
+                {
+                    metadata.Add(record);
+                    n++;
+                }
+                WinchCore.Log.Debug("Loaded " + n + " metadata");
+            }
+            using(var sr = new StreamReader(file.Replace(".yarn", ".yarnc")))
+            {
+                var bytes = default(byte[]);
+                using (var memstream = new MemoryStream())
+                {
+                    sr.BaseStream.CopyTo(memstream);
+                    bytes = memstream.ToArray();
+                }
+                programs.Add(Program.Parser.ParseFrom(bytes));
             }
         }
 
@@ -101,7 +161,6 @@ namespace DredgeDialogueExample
                 lineProvider.stringTable.AddEntry(line.Id, line.Text);
             }
 
-            Program modProgram = Program.Parser.ParseFrom(Properties.Resources.Program);
             var newProgram = new Program();
 
             Program oldProgram = Traverse.Create(runner.Dialogue).Field("program").GetValue<Program>();
@@ -111,11 +170,14 @@ namespace DredgeDialogueExample
             }
             newProgram.InitialValues.Add(oldProgram.InitialValues);
 
-            foreach (var nodeName in modProgram.Nodes)
+            foreach (var modProgram in programs)
             {
-                newProgram.Nodes[nodeName.Key] = nodeName.Value.Clone();
+                foreach (var nodeName in modProgram.Nodes)
+                {
+                    newProgram.Nodes[nodeName.Key] = nodeName.Value.Clone();
+                }
+                newProgram.InitialValues.Add(modProgram.InitialValues);
             }
-            newProgram.InitialValues.Add(modProgram.InitialValues);
 
             runner.Dialogue.SetProgram(newProgram);
 
