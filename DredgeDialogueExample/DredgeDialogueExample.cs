@@ -11,7 +11,14 @@ namespace DredgeDialogueExample
 
 			DialogueLoader.Load();
 
+   			GameManager.Instance.OnGameStarted += GameStarted;
+
 			WinchCore.Log.Debug("Success!");
+		}
+
+  		public void GameStarted()
+		{
+			Inject();
 		}
 
 		public void Inject()
