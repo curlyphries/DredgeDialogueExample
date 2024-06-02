@@ -66,6 +66,7 @@ namespace DredgeDialogueExample
                 using (var csv = new CsvReader(sr))
                 {
                     WinchCore.Log.Debug("Loading records!");
+                    csv.Configuration.Delimiter = ",";
                     var records = csv.GetRecords<Line>();
                     foreach (var record in records)
                     {
@@ -79,6 +80,7 @@ namespace DredgeDialogueExample
                 using (var csv = new CsvReader(sr))
                 {
                     WinchCore.Log.Debug("Loading metadata!");
+                    csv.Configuration.Delimiter = ",";
                     csv.Configuration.RegisterClassMap<LineMetadataMap>();
                     var records = csv.GetRecords<LineMetadata>();
                     foreach (var record in records)
