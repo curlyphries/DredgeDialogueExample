@@ -1,7 +1,0 @@
-﻿<Project>
-  <PropertyGroup>
-    <YarnCompilerPath>F:\jeans\DredgeModding\ysc.exe</YarnCompilerPath>
-    <DredgePath>F:\SteamLibrary\steamapps\common\DREDGE</DredgePath>
-    <OutputPath>$(DredgePath)\Mods\DredgeDialogueExample</OutputPath>
-  </PropertyGroup>
-</Project>
