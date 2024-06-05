@@ -1,5 +1,4 @@
-﻿using HarmonyLib;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace DredgeDialogueExample
 {
@@ -13,6 +12,6 @@ namespace DredgeDialogueExample
 			var gameObject = new GameObject(nameof(DredgeDialogueAPI));
 			gameObject.AddComponent<DredgeDialogueAPI>();
 			GameObject.DontDestroyOnLoad(gameObject);
-        }
+		}
 	}
 }
