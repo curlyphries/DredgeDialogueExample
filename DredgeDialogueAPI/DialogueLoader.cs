@@ -9,6 +9,7 @@ using CsvHelper.Configuration.Attributes;
 using CsvHelper.Configuration;
 using System;
 using System.Linq;
+using Yarn.Compiler;
 
 namespace DredgeDialogueAPI
 {
@@ -80,28 +81,22 @@ namespace DredgeDialogueAPI
 
         private static void LoadDialoguesFiles(string dialogueFolderPath)
         {
-            FileInfo[] fileInfos = new FileInfo[Directory.GetFiles(dialogueFolderPath).Where(f => f.EndsWith(".yarn")).Count()];
-            int i = 0;
+            string[] yarnFiles = Directory.GetFiles(dialogueFolderPath).Where(f => f.EndsWith(".yarn")).ToArray();
 
-            foreach(string file in Directory.GetFiles(dialogueFolderPath))
+            CompilationResult compilationResult = CompileProgram(yarnFiles);
+            programs.Add(compilationResult.Program);
+
+            foreach (var stringEntry in compilationResult.StringTable)
             {
-                if (!file.EndsWith(".yarn")) continue;
+                Line line = new Line();
+                line.Id = stringEntry.Key;
+                line.Text = stringEntry.Value.text;
+                line.Node = stringEntry.Value.nodeName;
+                line.File = stringEntry.Value.fileName;
+                line.LineNumber = stringEntry.Value.lineNumber;
 
-                fileInfos[i] = new FileInfo(file);
-                i++;
+                lines.Add(line);
             }
-            try
-            {
-                YarnSpinnerConsole.CompileCommand.CompileFiles(fileInfos, new DirectoryInfo(dialogueFolderPath), "output", null, null, false);
-
-            } catch (Exception ex)
-            {
-                WinchCore.Log.Error(ex);
-            }
-
-            WinchCore.Log.Info(Path.Combine(dialogueFolderPath, "output.yarn"));
-
-            Load(dialogueFolderPath);
         }
 
         private static void Load(string path)
@@ -141,6 +136,42 @@ namespace DredgeDialogueAPI
                 }
                 programs.Add(Program.Parser.ParseFrom(bytes));
             }
+        }
+
+        public static CompilationResult CompileProgram(string[] inputs)
+        {
+            // The majority of this method is lifted from https://github.com/YarnSpinner-Tool/YarnSpinner-Console, which is licensed MIT.
+            var compilationJob = CompilationJob.CreateFromFiles(inputs);
+
+            // Declare the existence of 'visited' and 'visited_count'
+            var visitedDecl = new DeclarationBuilder()
+                .WithName("visited")
+                .WithType(
+                    new FunctionTypeBuilder()
+                        .WithParameter(Yarn.BuiltinTypes.String)
+                        .WithReturnType(Yarn.BuiltinTypes.Boolean)
+                        .FunctionType)
+                .Declaration;
+
+            var visitedCountDecl = new DeclarationBuilder()
+                .WithName("visited_count")
+                .WithType(
+                    new FunctionTypeBuilder()
+                        .WithParameter(Yarn.BuiltinTypes.String)
+                        .WithReturnType(Yarn.BuiltinTypes.Number)
+                        .FunctionType)
+                .Declaration;
+
+            compilationJob.VariableDeclarations = (compilationJob.VariableDeclarations ?? Array.Empty<Declaration>()).Concat(new[] {
+                visitedDecl,
+                visitedCountDecl,
+            });
+
+            CompilationResult compilationResult;
+
+            compilationResult = Compiler.Compile(compilationJob); // Exceptions will bubble through to Winch.
+
+            return compilationResult;
         }
 
         public static void Inject()
