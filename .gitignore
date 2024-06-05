@@ -1,5 +1,3 @@
-DredgeDialogueExample/Dialogue/*.yarnc
-DredgeDialogueExample/Dialogue/*.csv
 *.csproj.user
 
 ## Ignore Visual Studio temporary files, build results, and

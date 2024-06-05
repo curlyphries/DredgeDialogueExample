@@ -1,7 +1,0 @@
-﻿<Project>
-  <PropertyGroup>
-    <YarnCompilerPath>F:\extract dredge\ysc.exe</YarnCompilerPath>
-    <DredgePath>F:\SteamLibrary\steamapps\common\DREDGE</DredgePath>
-    <OutputPath>$(DredgePath)\Mods\DaSea.MoreDredge</OutputPath>
-  </PropertyGroup>
-</Project>

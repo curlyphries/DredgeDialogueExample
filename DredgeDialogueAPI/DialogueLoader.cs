@@ -10,7 +10,7 @@ using CsvHelper.Configuration;
 using System;
 using System.Linq;
 
-namespace DredgeDialogueExample
+namespace DredgeDialogueAPI
 {
     public class Line
     {
@@ -106,7 +106,6 @@ namespace DredgeDialogueExample
 
         private static void Load(string path)
         {
-            //StreamReader sr2 = new StreamReader("Mods\\DredgeDialogueExample\\Dialogue\\DialogueExample-Lines.csv");
             using (var csv = new CsvReader(new StreamReader(Path.Combine(path, "output-Lines.csv"))))
             {
                 int n = 0;

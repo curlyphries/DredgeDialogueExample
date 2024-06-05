@@ -26,11 +26,6 @@
     <None Include="DredgeDialogueAPI.csproj.user" />
   </ItemGroup>
 
-  <!-- <Target Name="CompileDialogue" BeforeTargets="BeforeBuild">
-    <Exec Command="$(YarnCompilerPath) compile $(ProjectDir)Dialogue\DialogueExample.yarn" WorkingDirectory="$(ProjectDir)Dialogue\" />
-    <Message Importance="high" Text="CompileDialogue" />
-  </Target> -->
-
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="32.0.3">
       <IncludeAssets>CsvHelper.dll</IncludeAssets>
@@ -60,8 +55,12 @@
 	  <Content Include="Assets\Dialogues\**">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Folder Include="Assets\Dialogues\"/>
-	  <Content Include="Assets\Dialogues\**"/>
+	  <Folder Include="Assets\Dialogues\" />
+	  <Content Include="Assets\Dialogues\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Remove="assets\dialogues\Dialogue.yarn" />
   </ItemGroup>
 
 </Project>
