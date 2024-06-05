@@ -7,6 +7,8 @@ using System.IO;
 using Winch.Core;
 using CsvHelper.Configuration.Attributes;
 using CsvHelper.Configuration;
+using System;
+using System.Linq;
 
 namespace DredgeDialogueExample
 {
@@ -58,34 +60,87 @@ namespace DredgeDialogueExample
     {
         public static List<Line> lines = new();
         public static List<LineMetadata> metadata = new();
+        public static List<Program> programs = new();
 
-        public static void Load()
+        public static void LoadDialogues()
         {
-            using (StringReader sr = new StringReader(Properties.Resources.Lines))
+            WinchCore.Log.Debug("Loading dialogues...");
+
+            string[] modDirs = Directory.GetDirectories("Mods");    
+            foreach (string modDir in modDirs)
             {
-                using (var csv = new CsvReader(sr))
-                {
-                    WinchCore.Log.Debug("Loading records!");
-                    var records = csv.GetRecords<Line>();
-                    foreach (var record in records)
-                    {
-                        lines.Add(record);
-                    }
-                }
+                string assetFolderPath = Path.Combine(modDir, "Assets");
+                if (!Directory.Exists(assetFolderPath))
+                    continue;
+                string dialogueFolderPath = Path.Combine(assetFolderPath, "Dialogues");
+
+                if (Directory.Exists(dialogueFolderPath)) LoadDialoguesFiles(dialogueFolderPath);
+            }
+        }
+
+        private static void LoadDialoguesFiles(string dialogueFolderPath)
+        {
+            FileInfo[] fileInfos = new FileInfo[Directory.GetFiles(dialogueFolderPath).Where(f => f.EndsWith(".yarn")).Count()];
+            int i = 0;
+
+            foreach(string file in Directory.GetFiles(dialogueFolderPath))
+            {
+                if (!file.EndsWith(".yarn")) continue;
+
+                fileInfos[i] = new FileInfo(file);
+                i++;
+            }
+            try
+            {
+                YarnSpinnerConsole.CompileCommand.CompileFiles(fileInfos, new DirectoryInfo(dialogueFolderPath), "output", null, null, false);
+
+            } catch (Exception ex)
+            {
+                WinchCore.Log.Error(ex);
             }
 
-            using (StringReader sr = new StringReader(Properties.Resources.Metadata))
+            WinchCore.Log.Info(Path.Combine(dialogueFolderPath, "output.yarn"));
+
+            Load(dialogueFolderPath);
+        }
+
+        private static void Load(string path)
+        {
+            //StreamReader sr2 = new StreamReader("Mods\\DredgeDialogueExample\\Dialogue\\DialogueExample-Lines.csv");
+            using (var csv = new CsvReader(new StreamReader(Path.Combine(path, "output-Lines.csv"))))
             {
-                using (var csv = new CsvReader(sr))
+                int n = 0;
+                csv.Configuration.Delimiter = ",";
+                var records = csv.GetRecords<Line>();
+                foreach (var record in records)
                 {
-                    WinchCore.Log.Debug("Loading metadata!");
-                    csv.Configuration.RegisterClassMap<LineMetadataMap>();
-                    var records = csv.GetRecords<LineMetadata>();
-                    foreach (var record in records)
-                    {
-                        metadata.Add(record);
-                    }
+                    lines.Add(record);
                 }
+                WinchCore.Log.Debug("Loaded " + n + " records");
+            }
+
+            using (var csv = new CsvReader(new StreamReader(Path.Combine(path, "output-Metadata.csv"))))
+            {
+                int n = 0;
+                csv.Configuration.Delimiter = ",";
+                csv.Configuration.RegisterClassMap<LineMetadataMap>();
+                var records = csv.GetRecords<LineMetadata>();
+                foreach (var record in records)
+                {
+                    metadata.Add(record);
+                    n++;
+                }
+                WinchCore.Log.Debug("Loaded " + n + " metadata");
+            }
+            using(var sr = new StreamReader(Path.Combine(path, "output.yarnc")))
+            {
+                var bytes = default(byte[]);
+                using (var memstream = new MemoryStream())
+                {
+                    sr.BaseStream.CopyTo(memstream);
+                    bytes = memstream.ToArray();
+                }
+                programs.Add(Program.Parser.ParseFrom(bytes));
             }
         }
 
@@ -99,7 +154,6 @@ namespace DredgeDialogueExample
                 lineProvider.stringTable.AddEntry(line.Id, line.Text);
             }
 
-            Program modProgram = Program.Parser.ParseFrom(Properties.Resources.Program);
             var newProgram = new Program();
 
             Program oldProgram = Traverse.Create(runner.Dialogue).Field("program").GetValue<Program>();
@@ -109,11 +163,14 @@ namespace DredgeDialogueExample
             }
             newProgram.InitialValues.Add(oldProgram.InitialValues);
 
-            foreach (var nodeName in modProgram.Nodes)
+            foreach (var modProgram in programs)
             {
-                newProgram.Nodes[nodeName.Key] = nodeName.Value.Clone();
+                foreach (var nodeName in modProgram.Nodes)
+                {
+                    newProgram.Nodes[nodeName.Key] = nodeName.Value.Clone();
+                }
+                newProgram.InitialValues.Add(modProgram.InitialValues);
             }
-            newProgram.InitialValues.Add(modProgram.InitialValues);
 
             runner.Dialogue.SetProgram(newProgram);
 

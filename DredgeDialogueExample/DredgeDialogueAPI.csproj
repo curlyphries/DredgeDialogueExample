@@ -8,7 +8,7 @@
   </PropertyGroup>
 
   <PropertyGroup>
-    <AssemblyName>DredgeDialogueExample</AssemblyName>
+    <AssemblyName>DredgeDialogueAPI</AssemblyName>
     <CopyLocalLockFileAssemblies>false</CopyLocalLockFileAssemblies>
     <PlatformTarget>x86</PlatformTarget>
     <TargetFramework>net48</TargetFramework>
@@ -23,13 +23,13 @@
     <None Include="mod_meta.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="DredgeDialogueExample.csproj.user" />
+    <None Include="DredgeDialogueAPI.csproj.user" />
   </ItemGroup>
 
-  <Target Name="CompileDialogue" BeforeTargets="BeforeBuild">
+  <!-- <Target Name="CompileDialogue" BeforeTargets="BeforeBuild">
     <Exec Command="$(YarnCompilerPath) compile $(ProjectDir)Dialogue\DialogueExample.yarn" WorkingDirectory="$(ProjectDir)Dialogue\" />
     <Message Importance="high" Text="CompileDialogue" />
-  </Target>
+  </Target> -->
 
   <ItemGroup>
     <PackageReference Include="CsvHelper" Version="32.0.3">
@@ -54,6 +54,14 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>Resources.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+	  <Content Include="Assets\Dialogues\**">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+	  </Content>
+	  <Folder Include="Assets\Dialogues\"/>
+	  <Content Include="Assets\Dialogues\**"/>
   </ItemGroup>
 
 </Project>
