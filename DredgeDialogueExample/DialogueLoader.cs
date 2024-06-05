@@ -1,4 +1,4 @@
-using HarmonyLib;
+﻿using HarmonyLib;
 using System.Collections.Generic;
 using Yarn.Unity;
 using Yarn;
@@ -8,8 +8,7 @@ using Winch.Core;
 using CsvHelper.Configuration.Attributes;
 using CsvHelper.Configuration;
 using System;
-using System.Reflection;
-using System.Diagnostics;
+using System.Linq;
 
 namespace DredgeDialogueExample
 {
@@ -67,7 +66,7 @@ namespace DredgeDialogueExample
         {
             WinchCore.Log.Debug("Loading dialogues...");
 
-            string[] modDirs = Directory.GetDirectories("Mods");
+            string[] modDirs = Directory.GetDirectories("Mods");    
             foreach (string modDir in modDirs)
             {
                 string assetFolderPath = Path.Combine(modDir, "Assets");
@@ -81,40 +80,35 @@ namespace DredgeDialogueExample
 
         private static void LoadDialoguesFiles(string dialogueFolderPath)
         {
-            WinchCore.Log.Debug("Dialogues found");
+            FileInfo[] fileInfos = new FileInfo[Directory.GetFiles(dialogueFolderPath).Where(f => f.EndsWith(".yarn")).Count()];
+            int i = 0;
 
             foreach(string file in Directory.GetFiles(dialogueFolderPath))
             {
                 if (!file.EndsWith(".yarn")) continue;
 
-                ProcessStartInfo startInfo = new ProcessStartInfo();
-                startInfo.CreateNoWindow = true;
-                startInfo.WindowStyle = ProcessWindowStyle.Hidden;
-                startInfo.FileName = ".\\ysc.exe";
-                startInfo.Arguments = "compile "+ Path.GetFullPath(file);
-                startInfo.WorkingDirectory = dialogueFolderPath;
-
-                try
-                {
-                    using (Process exeProcess = Process.Start(startInfo))
-                    {
-                        exeProcess.WaitForExit();
-                    }
-                    Load(file);
-                }
-                catch(Exception e)
-                {
-                    WinchCore.Log.Error(e);
-                }
+                fileInfos[i] = new FileInfo(file);
+                i++;
             }
+            try
+            {
+                YarnSpinnerConsole.CompileCommand.CompileFiles(fileInfos, new DirectoryInfo(dialogueFolderPath), "output", null, null, false);
+
+            } catch (Exception ex)
+            {
+                WinchCore.Log.Error(ex);
+            }
+
+            WinchCore.Log.Info(Path.Combine(dialogueFolderPath, "output.yarn"));
+
+            Load(dialogueFolderPath);
         }
 
-        private static void Load(string file)
+        private static void Load(string path)
         {
             //StreamReader sr2 = new StreamReader("Mods\\DredgeDialogueExample\\Dialogue\\DialogueExample-Lines.csv");
-            using (var csv = new CsvReader(new StreamReader(file.Replace(".yarn", "-Lines.csv"))))
+            using (var csv = new CsvReader(new StreamReader(Path.Combine(path, "output-Lines.csv"))))
             {
-                WinchCore.Log.Debug("Loading records for " + Path.GetFileNameWithoutExtension(file) + "!");
                 int n = 0;
                 csv.Configuration.Delimiter = ",";
                 var records = csv.GetRecords<Line>();
@@ -125,9 +119,8 @@ namespace DredgeDialogueExample
                 WinchCore.Log.Debug("Loaded " + n + " records");
             }
 
-            using (var csv = new CsvReader(new StreamReader(file.Replace(".yarn", "-Metadata.csv"))))
+            using (var csv = new CsvReader(new StreamReader(Path.Combine(path, "output-Metadata.csv"))))
             {
-                WinchCore.Log.Debug("Loading metadata for " + Path.GetFileNameWithoutExtension(file) + "!");
                 int n = 0;
                 csv.Configuration.Delimiter = ",";
                 csv.Configuration.RegisterClassMap<LineMetadataMap>();
@@ -139,7 +132,7 @@ namespace DredgeDialogueExample
                 }
                 WinchCore.Log.Debug("Loaded " + n + " metadata");
             }
-            using(var sr = new StreamReader(file.Replace(".yarn", ".yarnc")))
+            using(var sr = new StreamReader(Path.Combine(path, "output.yarnc")))
             {
                 var bytes = default(byte[]);
                 using (var memstream = new MemoryStream())

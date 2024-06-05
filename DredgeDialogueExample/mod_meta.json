@@ -1,8 +1,8 @@
 {
-	"Name": "Dredge Dialogue Example",
-	"ModGUID": "nogarcia.DredgeDialogueExample",
+	"Name": "DredgeDialogueAPI",
+	"ModGUID": "nogarcia.DredgeDialogueAPI",
 	"Version": "0.0.1",
-	"ModAssembly": "DredgeDialogueExample.dll",
+	"ModAssembly": "DredgeDialogueAPI.dll",
 	"MinWinchVersion": "0.2.3",
-	"Entrypoint": "DredgeDialogueExample.Loader/Initialize"
+	"Entrypoint": "DredgeDialogueAPI.Loader/Initialize"
 }
