@@ -67,7 +67,7 @@ namespace DredgeDialogueAPI
         {
             WinchCore.Log.Debug("Loading dialogues...");
 
-            string[] modDirs = Directory.GetDirectories("Mods");    
+            string[] modDirs = Directory.GetDirectories("Mods");
             foreach (string modDir in modDirs)
             {
                 string assetFolderPath = Path.Combine(modDir, "Assets");
@@ -96,49 +96,19 @@ namespace DredgeDialogueAPI
                 line.LineNumber = stringEntry.Value.lineNumber;
 
                 lines.Add(line);
+
+                LineMetadata lineMetadata = new LineMetadata();
+                lineMetadata.Id = stringEntry.Key;
+                lineMetadata.Node = stringEntry.Value.nodeName;
+                lineMetadata.LineNumber = stringEntry.Value.lineNumber;
+                lineMetadata.Tags.AddRange(stringEntry.Value.metadata);
+                lineMetadata.Tags.RemoveAll(x => x.StartsWith("line:"));
+
+                metadata.Add(lineMetadata);
             }
         }
 
-        private static void Load(string path)
-        {
-            using (var csv = new CsvReader(new StreamReader(Path.Combine(path, "output-Lines.csv"))))
-            {
-                int n = 0;
-                csv.Configuration.Delimiter = ",";
-                var records = csv.GetRecords<Line>();
-                foreach (var record in records)
-                {
-                    lines.Add(record);
-                }
-                WinchCore.Log.Debug("Loaded " + n + " records");
-            }
-
-            using (var csv = new CsvReader(new StreamReader(Path.Combine(path, "output-Metadata.csv"))))
-            {
-                int n = 0;
-                csv.Configuration.Delimiter = ",";
-                csv.Configuration.RegisterClassMap<LineMetadataMap>();
-                var records = csv.GetRecords<LineMetadata>();
-                foreach (var record in records)
-                {
-                    metadata.Add(record);
-                    n++;
-                }
-                WinchCore.Log.Debug("Loaded " + n + " metadata");
-            }
-            using(var sr = new StreamReader(Path.Combine(path, "output.yarnc")))
-            {
-                var bytes = default(byte[]);
-                using (var memstream = new MemoryStream())
-                {
-                    sr.BaseStream.CopyTo(memstream);
-                    bytes = memstream.ToArray();
-                }
-                programs.Add(Program.Parser.ParseFrom(bytes));
-            }
-        }
-
-        public static CompilationResult CompileProgram(string[] inputs)
+        private static CompilationResult CompileProgram(string[] inputs)
         {
             // The majority of this method is lifted from https://github.com/YarnSpinner-Tool/YarnSpinner-Console, which is licensed MIT.
             var compilationJob = CompilationJob.CreateFromFiles(inputs);
@@ -174,6 +144,41 @@ namespace DredgeDialogueAPI
             return compilationResult;
         }
 
+        public static void AddInstruction(string nodeID, int index, Yarn.Instruction.Types.OpCode opCode, params object[] operands)
+        {
+            Yarn.Instruction instruction = new Instruction();
+            instruction.Opcode = opCode;
+
+            foreach (var operand in operands)
+            {
+                if (operand is string)
+                {
+                    instruction.Operands.Add(new Operand((string)operand));
+                }
+                else if (operand is bool)
+                {
+                    instruction.Operands.Add(new Operand((bool)operand));
+                }
+                else if (operand is float || operand is int)
+                {
+                    instruction.Operands.Add(new Operand(Convert.ToSingle(operand)));
+                }
+            }
+
+            DredgeDialogueRunner runner = GameManager.Instance.DialogueRunner;
+            Program program = Traverse.Create(runner.Dialogue).Field("program").GetValue<Program>();
+
+            program.Nodes[nodeID].Instructions.Insert(index, instruction);
+
+            foreach (var label in program.Nodes[nodeID].Labels)
+            {
+                if (label.Value >= index)
+                {
+                    program.Nodes[nodeID].Labels[label.Key] += 1;
+                }
+            }
+        }
+
         public static void Inject()
         {
             DredgeDialogueRunner runner = GameManager.Instance.DialogueRunner;
@@ -206,7 +211,7 @@ namespace DredgeDialogueAPI
 
             WinchCore.Log.Debug("yippee");
             var _lineMetadata = Traverse.Create(runner.yarnProject.lineMetadata).Field("_lineMetadata").GetValue<SerializedDictionary<string, string>>();
-            
+
             foreach (var metadataEntry in metadata)
             {
                 _lineMetadata.Add(metadataEntry.Id, string.Join(" ", metadataEntry.Tags));
