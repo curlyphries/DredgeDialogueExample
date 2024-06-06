@@ -1,8 +1,20 @@
 character,text,id
-TRAVELLING_MERCHANT_NAME_KEY,"Hey, there! You have a question for me?",line:0a344d1
-,,
-,Nope.,line:062c02e
-,,
-,Yep.,line:0b16d07
-,Cool...,line:0e5ab6f
-,,
+PLAYER_NAME,Are you going to the big festival?,line:festival1
+TRAVELLING_MERCHANT_NAME_KEY,Absolutely! I hear they're having a pie-eating contest and a snail race. Should be a blast!,line:festival2
+,That sounds fun! Are you participating in the pie-eating contest?,line:festival3
+TRAVELLING_MERCHANT_NAME_KEY,I would, but I'm allergic to winning.,line:festival4
+,A snail race? That must be slow.,line:festival5
+TRAVELLING_MERCHANT_NAME_KEY,Surprisingly, it's quite the thriller! Last year, Turbo Tony won by a slime.,line:festival6
+,What else is happening at the festival?,line:festival7
+TRAVELLING_MERCHANT_NAME_KEY,There's a juggling competition and a dance-off with disco cows.,line:festival8
+,Tell me more about the juggling competition.,line:festival9
+TRAVELLING_MERCHANT_NAME_KEY,Contestants juggle everything from oranges to flaming torches. Last year, someone juggled three live chickens!,line:festival10
+,Disco cows? Now that I've got to see!,line:festival11
+TRAVELLING_MERCHANT_NAME_KEY,They're udderly amazing! They even have their own glitter ball.,line:festival12
+,This festival sounds incredible. Anything else I should know?,line:festival13
+TRAVELLING_MERCHANT_NAME_KEY,Just make sure to bring your dancing shoes and an empty stomach. You won't regret it!,line:festival14
+,I can't wait! Are there any tickets left?,line:festival15
+TRAVELLING_MERCHANT_NAME_KEY,Plenty! Just tell them the merchant sent you and you'll get a discount.,line:festival16
+,Thanks for the info! See you there!,line:festival17
+PLAYER_NAME,Thanks for the tips! See you at the festival!,line:festival18
+TRAVELLING_MERCHANT_NAME_KEY,You bet! It's going to be unforgettable!,line:festival19
