@@ -36,6 +36,10 @@ namespace DredgeDialogueAPI
         /// </summary>
         public static List<Program> programs = new();
 
+        /// <summary>
+        /// Search the Winch mods folder for all mods that have dialogue assets.
+        /// </summary>
+        /// <returns>A list of paths to dialogue folders.</returns>
         public static List<string> SearchForDialogueFolders()
         {
             string[] modDirs = Directory.GetDirectories("Mods");
@@ -79,6 +83,11 @@ namespace DredgeDialogueAPI
             }
         }
 
+        /// <summary>
+        /// Compiles a program.
+        /// </summary>
+        /// <param name="inputs">List of paths to the source files.</param>
+        /// <returns>A compiled <see cref="Yarn.Program" /> and other metadata.</returns>
         private static CompilationResult CompileProgram(string[] inputs)
         {
             // The majority of this method is lifted from https://github.com/YarnSpinner-Tool/YarnSpinner-Console, which is licensed MIT.
@@ -115,6 +124,13 @@ namespace DredgeDialogueAPI
             return compilationResult;
         }
 
+        /// <summary>
+        /// Inserts an instruction into a node at a specified index and with operands.
+        /// </summary>
+        /// <param name="nodeID">The ID of the node.</param>
+        /// <param name="index">The index to insert the instruction at.</param>
+        /// <param name="opCode">The opcode to insert. See <see href="https://github.com/YarnSpinnerTool/YarnSpinner/blob/main/YarnSpinner/yarn_spinner.proto"/> for a list of opcodes.</param>
+        /// <param name="operands">Supported types: string, bool, float, int</param>
         public static void AddInstruction(string nodeID, int index, Yarn.Instruction.Types.OpCode opCode, params object[] operands)
         {
             Yarn.Instruction instruction = new Instruction();
@@ -150,6 +166,9 @@ namespace DredgeDialogueAPI
             }
         }
 
+        /// <summary>
+        /// Loads localized lines from CSV files on disk for each mod.
+        /// </summary>
         private static void LoadLocalizedLines()
         {
             // If the user reloads the game from the start menu after changing languages,
@@ -184,7 +203,13 @@ namespace DredgeDialogueAPI
                 }
             }
         }
-            
+        
+        /// <summary>
+        /// Inject all loaded dialogue lines into the game.
+        /// </summary>
+        /// <remarks>
+        /// Only call this after GameManager has been instantiated.
+        /// </remarks>
         public static void Inject()
         {
             LoadLocalizedLines();
