@@ -5,69 +5,41 @@ using Yarn;
 using CsvHelper;
 using System.IO;
 using Winch.Core;
-using CsvHelper.Configuration.Attributes;
 using CsvHelper.Configuration;
 using System;
 using System.Linq;
 using Yarn.Compiler;
+using System.Globalization;
+using System.Text;
 
 namespace DredgeDialogueAPI
 {
-    public class Line
-    {
-        [Index(0), Name("id")]
-        public string Id { get; set; }
-
-        [Index(1), Name("text")]
-        public string Text { get; set; }
-
-        [Index(2), Name("file")]
-        public string File { get; set; }
-
-        [Index(3), Name("node")]
-        public string Node { get; set; }
-
-        [Index(4), Name("lineNumber")]
-        public int LineNumber { get; set; }
-    }
-
-    public class LineMetadata
-    {
-        [Index(0), Name("id")]
-        public string Id { get; set; }
-
-        [Index(1), Name("node")]
-        public string Node { get; set; }
-
-        [Index(2), Name("lineNumber")]
-        public int LineNumber { get; set; }
-
-        [Index(3), Name("tags")]
-        public List<string> Tags { get; set; }
-    }
-
-    public sealed class LineMetadataMap : ClassMap<LineMetadata>
-    {
-        public LineMetadataMap()
-        {
-            Map(m => m.Id).Index(0);
-            Map(m => m.Node).Index(1);
-            Map(m => m.LineNumber).Index(2);
-            Map(m => m.Tags).Index(3);
-        }
-    }
-
     public class DialogueLoader
     {
-        public static List<Line> lines = new();
-        public static List<LineMetadata> metadata = new();
+        /// <summary>
+        /// Unlocalized lines indexed by their IDs, loaded from mod .yarn files. Used as fallbacks. Loaded in LoadDialoguesFiles on startup.
+        /// </summary>
+        public static Dictionary<string, string> lines = new();
+
+        /// <summary>
+        /// Localized lines indexed by their IDs, loaded from mod CSV files. Loaded in Inject on game start (after main menu.)
+        /// </summary>
+        public static Dictionary<string, string> localizedLines = new();
+
+        /// <summary>
+        /// Hashtags (e.g. #exit #aah) for loaded dialogue lines.
+        /// </summary>
+        public static Dictionary<string, string[]> metadata = new();
+        
+        /// <summary>
+        /// Programs from dialogue-providing mods.
+        /// </summary>
         public static List<Program> programs = new();
 
-        public static void LoadDialogues()
+        public static List<string> SearchForDialogueFolders()
         {
-            WinchCore.Log.Debug("Loading dialogues...");
-
             string[] modDirs = Directory.GetDirectories("Mods");
+            List<string> dialogueDirs = new();
             foreach (string modDir in modDirs)
             {
                 string assetFolderPath = Path.Combine(modDir, "Assets");
@@ -75,7 +47,19 @@ namespace DredgeDialogueAPI
                     continue;
                 string dialogueFolderPath = Path.Combine(assetFolderPath, "Dialogues");
 
-                if (Directory.Exists(dialogueFolderPath)) LoadDialoguesFiles(dialogueFolderPath);
+                if (Directory.Exists(dialogueFolderPath)) dialogueDirs.Add(dialogueFolderPath);
+            }
+
+            return dialogueDirs;
+        }
+
+        public static void LoadDialogues()
+        {
+            WinchCore.Log.Debug("Loading dialogues...");
+
+            foreach (string dialogueFolder in SearchForDialogueFolders())
+            {
+                LoadDialoguesFiles(dialogueFolder);
             }
         }
 
@@ -86,25 +70,12 @@ namespace DredgeDialogueAPI
             CompilationResult compilationResult = CompileProgram(yarnFiles);
             programs.Add(compilationResult.Program);
 
+            // Load "fallback" lines from the Yarn program's string table.
             foreach (var stringEntry in compilationResult.StringTable)
             {
-                Line line = new Line();
-                line.Id = stringEntry.Key;
-                line.Text = stringEntry.Value.text;
-                line.Node = stringEntry.Value.nodeName;
-                line.File = stringEntry.Value.fileName;
-                line.LineNumber = stringEntry.Value.lineNumber;
+                lines[stringEntry.Key] = stringEntry.Value.text;
 
-                lines.Add(line);
-
-                LineMetadata lineMetadata = new LineMetadata();
-                lineMetadata.Id = stringEntry.Key;
-                lineMetadata.Node = stringEntry.Value.nodeName;
-                lineMetadata.LineNumber = stringEntry.Value.lineNumber;
-                lineMetadata.Tags.AddRange(stringEntry.Value.metadata);
-                lineMetadata.Tags.RemoveAll(x => x.StartsWith("line:"));
-
-                metadata.Add(lineMetadata);
+                metadata[stringEntry.Key] = stringEntry.Value.metadata.Where(x => !x.StartsWith("line:")).ToArray();
             }
         }
 
@@ -179,14 +150,57 @@ namespace DredgeDialogueAPI
             }
         }
 
+        private static void LoadLocalizedLines()
+        {
+            // If the user reloads the game from the start menu after changing languages,
+            // lines that were translated but that now aren't need to be set to fallbacks.
+            localizedLines.Clear();
+            foreach (string dialogueFolderPath in SearchForDialogueFolders())
+            {
+                // Language code (i.e. "en", "es", "pt-BR") from game settings.
+                // The game's language can only be set from the main menu, before dialogue is loaded,
+                // so in regard to dialogue, it's fine to only load once.
+                string localeId = GameManager.Instance.SettingsSaveData.localeId;
+                string linesPath = Path.Combine(dialogueFolderPath, $"lines-{localeId}.csv");
+                if (File.Exists(linesPath))
+                {
+                    var config = new Configuration(CultureInfo.InvariantCulture)
+                    {
+                        PrepareHeaderForMatch = (header, index) => header.ToLowerInvariant(),
+                    };
+
+                    using (var reader = new StreamReader(linesPath, Encoding.UTF8))
+                    using (var csv = new CsvReader(reader, config))
+                    {
+                        var records = csv.GetRecords<LinesCSVRecord>();
+
+                        foreach (var record in records)
+                        {
+                            if (record.Id.Length == 0) continue;
+
+                            localizedLines[record.Id] = record.Character.Length > 0 ? $"{record.Character}: {record.Text}" : record.Text;
+                        }
+                    }
+                }
+            }
+        }
+            
         public static void Inject()
         {
+            LoadLocalizedLines();
+
             DredgeDialogueRunner runner = GameManager.Instance.DialogueRunner;
             DredgeLocalizedLineProvider lineProvider = runner.lineProvider as DredgeLocalizedLineProvider;
 
             foreach (var line in lines)
             {
-                lineProvider.stringTable.AddEntry(line.Id, line.Text);
+                lineProvider.stringTable.AddEntry(line.Key, line.Value);
+            }
+
+            // Override localized lines.
+            foreach (var localizedLine in localizedLines)
+            {
+                lineProvider.stringTable.AddEntry(localizedLine.Key, localizedLine.Value);
             }
 
             var newProgram = new Program();
@@ -209,13 +223,19 @@ namespace DredgeDialogueAPI
 
             runner.Dialogue.SetProgram(newProgram);
 
-            WinchCore.Log.Debug("yippee");
             var _lineMetadata = Traverse.Create(runner.yarnProject.lineMetadata).Field("_lineMetadata").GetValue<SerializedDictionary<string, string>>();
 
             foreach (var metadataEntry in metadata)
             {
-                _lineMetadata.Add(metadataEntry.Id, string.Join(" ", metadataEntry.Tags));
+                _lineMetadata.Add(metadataEntry.Key, string.Join(" ", metadataEntry.Value));
             }
         }
+    }
+
+    public class LinesCSVRecord
+    {
+        public string Character { get; set; }
+        public string Text { get; set; }
+        public string Id { get; set; }
     }
 }

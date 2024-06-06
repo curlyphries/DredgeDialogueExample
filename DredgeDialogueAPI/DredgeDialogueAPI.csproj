@@ -55,12 +55,13 @@
 	  <Content Include="Assets\Dialogues\**">
 		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
 	  </Content>
-	  <Folder Include="Assets\Dialogues\" />
 	  <Content Include="Assets\Dialogues\**" />
   </ItemGroup>
 
   <ItemGroup>
     <None Remove="assets\dialogues\Dialogue.yarn" />
+    <None Remove="Assets\Dialogues\lines-en.csv" />
+    <None Remove="Assets\Dialogues\lines-zh-Hans.csv" />
   </ItemGroup>
 
 </Project>
